@@ -12,10 +12,6 @@ import { Square } from "./Square.js";
 const canvas = document.getElementById('glCanvas');
 const gl = canvas.getContext('webgl2');
 let shader;   // shader program
-let vao;      // vertex array object
-let colorTag = "red"; // triangle 초기 color는 red
-let verticalFlip = 1.0; // 1.0 for normal, -1.0 for vertical flip
-let textOverlay3; // for text output third line (see util.js)
 
 function initWebGL() {
     if (!gl) {
@@ -41,51 +37,13 @@ async function initShader() {
     shader = new Shader(gl, vertexShaderSource, fragmentShaderSource);
 }
 
-function setupKeyboardEvents() {
-    document.addEventListener('keydown', (event) => {
-        if (event.key == 'f') {
-            //console.log("f key pressed");
-            updateText(textOverlay3, "f key pressed");
-            verticalFlip = -verticalFlip; 
-        }
-        else if (event.key == 'r') {
-            //console.log("r key pressed");
-            updateText(textOverlay3, "r key pressed");
-            colorTag = "red";
-        }
-        else if (event.key == 'g') {
-            //console.log("g key pressed");
-            updateText(textOverlay3, "g key pressed");
-            colorTag = "green";
-        }
-        else if (event.key == 'b') {
-            //console.log("b key pressed");
-            updateText(textOverlay3, "b key pressed");
-            colorTag = "blue";
-        }
-    });
-}
-
-function setupBuffers() {
-    const vertices = new Float32Array([
-        -0.5, -0.5, 0.0,  // Bottom left
-         0.5, -0.5, 0.0,  // Bottom right
-         0.0,  0.5, 0.0   // Top center
-    ]);
-
-    vao = gl.createVertexArray();
-    gl.bindVertexArray(vao);
-
-    const vbo = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-
-    shader.setAttribPointer('aPos', 3, gl.FLOAT, false, 0, 0);
-}
 
 function render() {
     gl.clear(gl.COLOR_BUFFER_BIT);
+
     MySquare.render();
+
+    requestAnimationFrame(() => render());
 }
 
 let MySquare;
@@ -105,7 +63,6 @@ function MyFunction() {
         if (!MySquare) return;
         if (event.key in Direction){
             MySquare.move(...Direction[event.key]);
-            render();
         }
     }
     });
@@ -116,9 +73,6 @@ function MyFunction() {
             // do something here
         if (!MySquare) return;
         }
-    });
-    window.addEventListener('resize', () => {
-            render();
     });
 
 }
@@ -140,9 +94,8 @@ async function main() {
         // Setup Square Object
         MySquare = new Square({gl : gl, shader : shader});
 
-        gl.clear(gl.COLOR_BUFFER_BIT);
+        render();
 
-        MySquare.render();
         MyFunction();
         return true;
 

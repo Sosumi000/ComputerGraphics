@@ -20,8 +20,6 @@ function render(color, verticalFlip) {
 
     gl.bindVertexArray(vao);
     gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
-
-    requestAnimationFrame(() => render());
 }
 
 
@@ -35,19 +33,23 @@ export class Square {
     }
     render(){
         let vertices = new Float32Array([
-            -0.1 + this.X, -0.1 + this.Y, 0.0,  
-            0.1 + this.X, -0.1 + this.Y, 0.0,
-            0.1 + this.X, 0.1 + this.Y, 0.0,
-            -0.1 + this.X,  0.1 + this.Y, 0.0   
+            -0.1, -0.1, 0.0,  
+            0.1, -0.1, 0.0,
+            0.1, 0.1, 0.0,
+            -0.1 , 0.1, 0.0   
         ]);
         setupBuffers(vertices);
+
         shader.use();
-        render([1.0, 0.0, 0.0, 1.0],1.0);
+        shader.setVec2("squareOffset", new Float32Array([this.X, this.Y]));
         
+        render(new Float32Array([1.0, 0.0, 0.0, 1.0]),1.0);
     }
 
     move(X, Y){
         this.X += X;
+        this.X = Math.min(0.9, Math.max(-0.9, this.X));
         this.Y += Y;
+        this.Y = Math.min(0.9, Math.max(-0.9, this.Y));
     }
 }
