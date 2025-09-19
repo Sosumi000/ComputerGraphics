@@ -19,7 +19,7 @@ function render(color, verticalFlip) {
     shader.setFloat("verticalFlip", verticalFlip);
 
     gl.bindVertexArray(vao);
-    gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+    gl.drawArrays(gl.TRIANGLE_FAN, 0, 4); // 4 is the number of vertices
 }
 
 
