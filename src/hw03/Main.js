@@ -22,10 +22,12 @@ let positionBuffer; // 2D position을 위한 VBO (Vertex Buffer Object)
 let isDrawing = false; // mouse button을 누르고 있는 동안 true로 change
 let startPoint = null;  // mouse button을 누른 위치
 let tempEndPoint = null; // mouse를 움직이는 동안의 위치
-let lines = []; // 그려진 선분들을 저장하는 array
 let textOverlay; // 1st line segment 정보 표시
 let textOverlay2; // 2nd line segment 정보 표시
+let textOverlay3; // 3rd line segment 정보 표시
 let axes = new Axes(gl, 0.85); // x, y axes 그려주는 object (see util.js)
+
+let objects = []; // 그려진 도형들을 저장하는 array
 
 // DOMContentLoaded event
 // 1) 모든 HTML 문서가 완전히 load되고 parsing된 후 발생
@@ -120,6 +122,119 @@ function convertToWebGLCoordinates(x, y) {
     y = event.clientY - rect.top   // canvas 내에서의 클릭 y 좌표
 */
 
+function drawObject(self){
+        shader.setVec4("u_color", self.color);
+
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(self.vertices), gl.STATIC_DRAW);
+        gl.bindVertexArray(vao);
+        gl.drawArrays(gl.LINE_STRIP, 0, self.vertexCount);
+}
+
+function addCircle(x,y,r,col){
+        var self = {};
+        self.type = "Circle";
+        self.color = col;
+
+        var points = [];
+        for (let i = 0; i <= 127; i++) {
+            const px = x + r * Math.sin(2 * Math.PI * i / 127), py = y + r * Math.cos(2 * Math.PI * i / 127);
+            points.push(px);
+            points.push(py);
+        }
+        self.vertices = points;
+        self.vertexCount = 128;
+
+        self.x = x;
+        self.y = y;
+        self.radius = r;
+
+        objects.push(self);
+
+        console.log(self);
+
+        return self;
+}
+
+function addLine(x1,y1,x2,y2,col){
+        var self = {};
+        self.type = "Line";
+        self.color = col;
+
+        const points = [x1,y1,x2,y2];
+        
+        self.vertices = points;
+        self.vertexCount = 2;
+        
+        self.x1 = x1;
+        self.y1 = y1;
+        self.x2 = x2;
+        self.y2 = y2;
+
+        objects.push(self);
+
+        return self;
+}
+
+function addSquare(x1,y1,x2,y2,col){
+        var self = {};
+        self.type = "Line";
+        self.color = col;
+
+        const points = [x1,y1,x2,y2];
+        
+        self.vertices = points;
+        self.vertexCount = 2;
+        
+        self.x1 = x1;
+        self.y1 = y1;
+        self.x2 = x2;
+        self.y2 = y2;
+
+        objects.push(self);
+
+        return self;
+}
+
+function getIntersectionBetweenCircleAndLine(Circle, Line){
+    const cx = Circle.x;
+    const cy = Circle.y;
+
+    const r = Circle.radius;
+    
+    const x1 = Line.x1;
+    const y1 = Line.y1;
+    const x2 = Line.x2;
+    const y2 = Line.y2;
+
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+
+    const a = dx / dy;
+    const b = y1 - x1 * a;
+
+    const W = a*a + 1;
+    const L = 2*(a*b - a*cy - cx);
+    const M = b*b - 2*b*cy + cy*cy + cx*cx - r*r;
+
+    const D = W*W + 4*L*M;
+
+    const results = [];
+
+    if (D < 0) {
+    } else if (D > 0) {
+        const sqrtD = Math.sqrt(D);
+        results.push([(-L - sqrtD) / W, a * (-L - sqrtD) / W + b]);
+        results.push([(-L + sqrtD) / W, a * (-L + sqrtD) / W + b]);
+    } else{
+        const x = -L / W;
+        const y = a * x + b;
+
+        results.push([x, y]);
+    }
+    
+    return results;
+}
+
 function setupMouseEvents() {
     function handleMouseDown(event) {
         event.preventDefault(); // 이미 존재할 수 있는 기본 동작을 방지
@@ -129,7 +244,7 @@ function setupMouseEvents() {
         const x = event.clientX - rect.left;  // canvas 내 x 좌표
         const y = event.clientY - rect.top;   // canvas 내 y 좌표
         
-        if (!isDrawing && lines.length < 2) { 
+        if (!isDrawing && objects.length < 2) { 
             // 1번 또는 2번 선분을 그리고 있는 도중이 아닌 경우 (즉, mouse down 상태가 아닌 경우)
             // 캔버스 좌표를 WebGL 좌표로 변환하여 선분의 시작점을 설정
             let [glX, glY] = convertToWebGLCoordinates(x, y);
@@ -160,16 +275,28 @@ function setupMouseEvents() {
             // ex) lines = [[1, 2, 3, 4]] 이고 startPoint = [5, 6], tempEndPoint = [7, 8] 이면,
             //     lines = [[1, 2, 3, 4], [5, 6, 7, 8]] 이 됨
 
-            lines.push([...startPoint, ...tempEndPoint]); 
+            // lines.push([...startPoint, ...tempEndPoint]); 
 
-            if (lines.length == 1) {
-                updateText(textOverlay, "First line segment: (" + lines[0][0].toFixed(2) + ", " + lines[0][1].toFixed(2) + 
-                    ") ~ (" + lines[0][2].toFixed(2) + ", " + lines[0][3].toFixed(2) + ")");
+            if (objects.length == 0) {
+                const vector1 = [tempEndPoint[0]-startPoint[0], tempEndPoint[1]-startPoint[1]];
+                const length = Math.sqrt(vector1[0]*vector1[0] + vector1[1]*vector1[1]);
+
+
+                addCircle(...startPoint, length,[1.0, 1.0, 0.0, 1.0]);
+                
+            } else if (objects.length == 1) {
+                addLine(...startPoint, ...tempEndPoint,[1.0, 1.0, 0.0, 1.0]);
+            }
+
+            if (objects.length == 1) {
+                const Circle = objects[0];
+                updateText(textOverlay, `Circle: center (${Circle.x}, ${Circle.y}) radius : ${Circle.radius}`  );
                 updateText(textOverlay2, "Click and drag to draw the second line segment");
             }
-            else { // lines.length == 2
-                updateText(textOverlay2, "Second line segment: (" + lines[1][0].toFixed(2) + ", " + lines[1][1].toFixed(2) + 
-                    ") ~ (" + lines[1][2].toFixed(2) + ", " + lines[1][3].toFixed(2) + ")");
+            else { // objects.length == 2
+                const LineObject = objects[1];
+                updateText(textOverlay2, `Line segment: (${LineObject.x1}, ${LineObject.y1}) ~ (${LineObject.x2}, ${LineObject.y2}) `  );
+                updateText(textOverlay3, `Intersection points: () `  );
             }
 
             isDrawing = false;
@@ -191,28 +318,25 @@ function render() {
 
     shader.use();
     
-    // 저장된 선들 그리기
-    let num = 0;
-    for (let line of lines) {
-        if (num == 0) { // 첫 번째 선분인 경우, yellow
-            shader.setVec4("u_color", [1.0, 1.0, 0.0, 1.0]);
-        }
-        else { // num == 1 (2번째 선분인 경우), red
-            shader.setVec4("u_color", [1.0, 0.0, 1.0, 1.0]);
-        }
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(line), gl.STATIC_DRAW);
-        gl.bindVertexArray(vao);
-        gl.drawArrays(gl.LINES, 0, 2);
-        num++;
+    // 저장된 도형들 그리기
+    for (let object of objects) {
+        drawObject(object);
     }
 
     // 임시 선 그리기
     if (isDrawing && startPoint && tempEndPoint) {
-        shader.setVec4("u_color", [0.5, 0.5, 0.5, 1.0]); // 임시 선분의 color는 회색
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([...startPoint, ...tempEndPoint]), 
-                      gl.STATIC_DRAW);
-        gl.bindVertexArray(vao);
-        gl.drawArrays(gl.LINES, 0, 2);
+
+        if (objects.length == 0) {
+            const vector1 = [tempEndPoint[0]-startPoint[0], tempEndPoint[1]-startPoint[1]];
+            const length = Math.sqrt(vector1[0]*vector1[0] + vector1[1]*vector1[1]);
+            const temp = addCircle(...startPoint, length, [0.5, 0.5, 0.5, 1.0]);
+            drawObject(temp);
+            objects.pop();
+        } else if (objects.length == 1) {
+            const temp = addLine(...startPoint, ...tempEndPoint, [0.5, 0.5, 0.5, 1.0]);
+            drawObject(temp);
+            objects.pop();
+        }
     }
 
     // axes 그리기
@@ -242,6 +366,7 @@ async function main() {
         // 텍스트 초기화
         textOverlay = setupText(canvas, "No line segment", 1);
         textOverlay2 = setupText(canvas, "Click mouse button and drag to draw line segments", 2);
+        textOverlay3 = setupText(canvas, "", 3);
         
         // 마우스 이벤트 설정
         setupMouseEvents();
