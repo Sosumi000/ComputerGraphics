@@ -124,10 +124,12 @@ function convertToWebGLCoordinates(x, y) {
 
 function drawObject(self){
         shader.setVec4("u_color", self.color);
+        shader.setFloat("uPointSize", self.pointSize || 1.0);
 
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(self.vertices), gl.STATIC_DRAW);
         gl.bindVertexArray(vao);
-        gl.drawArrays(self.renderMode || gl.LINE_STRIP, 0, self.vertexCount);
+
+        gl.drawArrays(self.renderMode || gl.POINTS, 0, self.vertexCount);
 }
 
 function addCircle(x,y,r,col){
@@ -143,6 +145,7 @@ function addCircle(x,y,r,col){
         }
         self.vertices = points;
         self.vertexCount = 128;
+        self.renderMode = gl.LINE_STRIP;
 
         self.x = x;
         self.y = y;
@@ -162,6 +165,7 @@ function addLine(x1,y1,x2,y2,col){
         
         self.vertices = points;
         self.vertexCount = 2;
+        self.renderMode = gl.LINE_STRIP;
         
         self.x1 = x1;
         self.y1 = y1;
@@ -188,11 +192,34 @@ function addSquare(x1,y1,x2,y2,col){
         self.renderMode = gl.TRIANGLE_FAN;
         self.vertices = points;
         self.vertexCount = 4;
+        self.renderMode = gl.LINE_STRIP;
         
         self.x1 = x1;
         self.y1 = y1;
         self.x2 = x2;
         self.y2 = y2;
+
+        objects.push(self);
+
+        return self;
+}
+
+
+function addPoint(x,y,col){
+        var self = {};
+        self.type = "Point";
+        self.color = col;
+
+        const points = [
+            x,y,
+        ];
+        
+        self.vertices = points;
+        self.vertexCount = 1;
+        self.pointSize = 10.0;
+        
+        self.x = x;
+        self.y = y;
 
         objects.push(self);
 
@@ -306,8 +333,7 @@ function setupMouseEvents() {
                 let count = 0
                 
                 for (const IntersectionPoint of IntersectionPoints) {
-                    addSquare(IntersectionPoint.x- 0.01, IntersectionPoint.y - 0.01, 
-                        IntersectionPoint.x + 0.01, IntersectionPoint.y + 0.01, [1.0, 0.0, 0.0, 1.0]);
+                    addPoint(IntersectionPoint.x, IntersectionPoint.y, [1.0, 0.0, 0.0, 1.0]);
                         
                     count += 1;
                     text += `Point ${count}: (${IntersectionPoint.x.toFixed(2)}, ${IntersectionPoint.y.toFixed(2)}) `
