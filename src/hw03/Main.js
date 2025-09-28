@@ -127,7 +127,7 @@ function drawObject(self){
 
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(self.vertices), gl.STATIC_DRAW);
         gl.bindVertexArray(vao);
-        gl.drawArrays(gl.LINE_STRIP, 0, self.vertexCount);
+        gl.drawArrays(self.renderMode || gl.LINE_STRIP, 0, self.vertexCount);
 }
 
 function addCircle(x,y,r,col){
@@ -149,8 +149,6 @@ function addCircle(x,y,r,col){
         self.radius = r;
 
         objects.push(self);
-
-        console.log(self);
 
         return self;
 }
@@ -177,13 +175,19 @@ function addLine(x1,y1,x2,y2,col){
 
 function addSquare(x1,y1,x2,y2,col){
         var self = {};
-        self.type = "Line";
+        self.type = "Square";
         self.color = col;
 
-        const points = [x1,y1,x2,y2];
+        const points = [
+            x1,y1,
+            x2,y1,
+            x2,y2,
+            x1,y2,
+        ];
         
+        self.renderMode = gl.TRIANGLE_FAN;
         self.vertices = points;
-        self.vertexCount = 2;
+        self.vertexCount = 4;
         
         self.x1 = x1;
         self.y1 = y1;
@@ -209,30 +213,27 @@ function getIntersectionBetweenCircleAndLine(Circle, Line){
     const dx = x2 - x1;
     const dy = y2 - y1;
 
-    const a = dx / dy;
-    const b = y1 - x1 * a;
+    const A = dx * dx + dy * dy;
+    const B = 2 * (dx * (x1 - cx) + dy * (y1 - cy));
+    const C = (x1 - cx) ** 2 + (y1 - cy) ** 2 - r * r;
 
-    const W = a*a + 1;
-    const L = 2*(a*b - a*cy - cx);
-    const M = b*b - 2*b*cy + cy*cy + cx*cx - r*r;
+    const D = B * B - 4 * A * C;
+    const points = [];
 
-    const D = W*W + 4*L*M;
+    if (D < 0) return points;
 
-    const results = [];
+    const sqrtD = Math.sqrt(D);
+    const t1 = (-B - sqrtD) / (2 * A);
+    const t2 = (-B + sqrtD) / (2 * A);
 
-    if (D < 0) {
-    } else if (D > 0) {
-        const sqrtD = Math.sqrt(D);
-        results.push([(-L - sqrtD) / W, a * (-L - sqrtD) / W + b]);
-        results.push([(-L + sqrtD) / W, a * (-L + sqrtD) / W + b]);
-    } else{
-        const x = -L / W;
-        const y = a * x + b;
-
-        results.push([x, y]);
+    if (0 <= t1 && t1 <= 1) {
+        points.push({ x: x1 + t1 * dx, y: y1 + t1 * dy });
     }
-    
-    return results;
+    if (0 <= t2 && t2 <= 1 && D > 0) { 
+        points.push({ x: x1 + t2 * dx, y: y1 + t2 * dy });
+    }
+
+    return points;
 }
 
 function setupMouseEvents() {
@@ -290,13 +291,34 @@ function setupMouseEvents() {
 
             if (objects.length == 1) {
                 const Circle = objects[0];
-                updateText(textOverlay, `Circle: center (${Circle.x}, ${Circle.y}) radius : ${Circle.radius}`  );
+                updateText(textOverlay, `Circle: center (${Circle.x.toFixed(2)}, ${Circle.y.toFixed(2)}) radius = ${Circle.radius.toFixed(2)}`  );
                 updateText(textOverlay2, "Click and drag to draw the second line segment");
             }
             else { // objects.length == 2
+                const Circle = objects[0];
                 const LineObject = objects[1];
-                updateText(textOverlay2, `Line segment: (${LineObject.x1}, ${LineObject.y1}) ~ (${LineObject.x2}, ${LineObject.y2}) `  );
-                updateText(textOverlay3, `Intersection points: () `  );
+                updateText(textOverlay2, `Line segment: (${LineObject.x1.toFixed(2)}, ${LineObject.y1.toFixed(2)}) ~ (${LineObject.x2.toFixed(2)}, ${LineObject.y2.toFixed(2)}) `  );
+                
+
+                const IntersectionPoints = getIntersectionBetweenCircleAndLine(Circle, LineObject);
+
+                let text = "";
+                let count = 0
+                
+                for (const IntersectionPoint of IntersectionPoints) {
+                    addSquare(IntersectionPoint.x- 0.01, IntersectionPoint.y - 0.01, 
+                        IntersectionPoint.x + 0.01, IntersectionPoint.y + 0.01, [1.0, 0.0, 0.0, 1.0]);
+                        
+                    count += 1;
+                    text += `Point ${count}: (${IntersectionPoint.x.toFixed(2)}, ${IntersectionPoint.y.toFixed(2)}) `
+                }
+                
+                if (count > 0) {
+                    updateText(textOverlay3, `Intersection Points: ${IntersectionPoints.length} ${text} `  );
+                } else {
+                    updateText(textOverlay3, `No intersection`  );
+                }
+
             }
 
             isDrawing = false;
@@ -353,7 +375,6 @@ async function main() {
     try {
         if (!initWebGL()) {
             throw new Error('WebGL 초기화 실패');
-            return false; 
         }
 
         // 셰이더 초기화
@@ -364,8 +385,8 @@ async function main() {
         shader.use();
 
         // 텍스트 초기화
-        textOverlay = setupText(canvas, "No line segment", 1);
-        textOverlay2 = setupText(canvas, "Click mouse button and drag to draw line segments", 2);
+        textOverlay = setupText(canvas, "", 1);
+        textOverlay2 = setupText(canvas, "", 2);
         textOverlay3 = setupText(canvas, "", 3);
         
         // 마우스 이벤트 설정
