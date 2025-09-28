@@ -319,14 +319,12 @@ function setupMouseEvents() {
             if (objects.length == 1) {
                 const Circle = objects[0];
                 updateText(textOverlay, `Circle: center (${Circle.x.toFixed(2)}, ${Circle.y.toFixed(2)}) radius = ${Circle.radius.toFixed(2)}`  );
-                updateText(textOverlay2, "Click and drag to draw the second line segment");
             }
             else { // objects.length == 2
                 const Circle = objects[0];
                 const LineObject = objects[1];
                 updateText(textOverlay2, `Line segment: (${LineObject.x1.toFixed(2)}, ${LineObject.y1.toFixed(2)}) ~ (${LineObject.x2.toFixed(2)}, ${LineObject.y2.toFixed(2)}) `  );
                 
-
                 const IntersectionPoints = getIntersectionBetweenCircleAndLine(Circle, LineObject);
 
                 let text = "";
