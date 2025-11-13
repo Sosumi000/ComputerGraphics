@@ -35,7 +35,7 @@ const axes = new Axes(gl, 1.5); // create an Axes object with the length of axis
 const texture = loadTexture(gl, true, './Texture.png');
 
 const cameraPos = vec3.fromValues(0, 0, 3);
-const lightDirection = vec3.fromValues(1.0, 0.5, 0.5);
+const lightDirection = vec3.fromValues(1.0, 0.25, 0.5);
 const shininess = 32.0;
 
 let toonLevel = 5;
@@ -74,6 +74,8 @@ function setupKeyboardEvents() {
             updateText(textOverlay2, "arcball mode: " + arcBallMode);
         }
         if (event.key == 'r') {
+            arcball.reset();
+            modelMatrix = mat4.create(); 
             arcBallMode = 'CAMERA';
             updateText(textOverlay2, "arcball mode: " + arcBallMode);
         }
@@ -179,7 +181,7 @@ async function main() {
         cylinder.copyVertexNormalsToNormals();
         cylinder.updateNormals();
 
-        setupText(canvas, "DIRECTIONAL LIGHT ", 1);
+        setupText(canvas, "TOON SHADING ", 1);
         textOverlay2 = setupText(canvas, "arcball mode: " + arcBallMode, 2);
         textOverlay3 = setupText(canvas, "toon levels: " + toonLevel, 3);
         setupText(canvas, "press 'a/r' to change/reset arcball mode", 4);
